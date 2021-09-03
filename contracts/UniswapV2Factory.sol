@@ -12,6 +12,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
 
     event PairCreated(address indexed token0, address indexed token1, address pair, uint);
 
+    // TODO: what is constructor?
     constructor(address _feeToSetter) public {
         feeToSetter = _feeToSetter;
     }
@@ -25,14 +26,21 @@ contract UniswapV2Factory is IUniswapV2Factory {
         (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
         require(token0 != address(0), 'UniswapV2: ZERO_ADDRESS');
         require(getPair[token0][token1] == address(0), 'UniswapV2: PAIR_EXISTS'); // single check is sufficient
+
+        // duplicate code
+        // TODO: what is bytes memory type?
         bytes memory bytecode = type(UniswapV2Pair).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
+        // TODO: what does the assembly do?
         assembly {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
+        // setup the pair
         IUniswapV2Pair(pair).initialize(token0, token1);
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
+        
+        // add pair to the allPairs list
         allPairs.push(pair);
         emit PairCreated(token0, token1, pair, allPairs.length);
     }

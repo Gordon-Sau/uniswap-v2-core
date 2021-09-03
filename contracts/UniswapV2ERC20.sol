@@ -6,10 +6,15 @@ import './libraries/SafeMath.sol';
 contract UniswapV2ERC20 is IUniswapV2ERC20 {
     using SafeMath for uint;
 
+    // erc20 token
     string public constant name = 'Uniswap V2';
     string public constant symbol = 'UNI-V2';
     uint8 public constant decimals = 18;
+
     uint  public totalSupply;
+ 
+    // Solidity automatically create getter for public state variable
+    // don't have to write getter for them
     mapping(address => uint) public balanceOf;
     mapping(address => mapping(address => uint)) public allowance;
 
@@ -22,10 +27,13 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     event Transfer(address indexed from, address indexed to, uint value);
 
     constructor() public {
+        // TODO: why do we have chainId? Isn't there only one chain?
         uint chainId;
         assembly {
             chainId := chainid
         }
+        // TODO: what is this hash for?
+        // what is abi?
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
@@ -40,6 +48,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     function _mint(address to, uint value) internal {
         totalSupply = totalSupply.add(value);
         balanceOf[to] = balanceOf[to].add(value);
+        // emit means log the event
         emit Transfer(address(0), to, value);
     }
 
@@ -71,6 +80,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     }
 
     function transferFrom(address from, address to, uint value) external returns (bool) {
+        // TODO: so when allowance == uint(-1), we have infinite allowance?
         if (allowance[from][msg.sender] != uint(-1)) {
             allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
         }
@@ -78,8 +88,11 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
         return true;
     }
 
+    // not in erc20 standard
+    // TODO: https://eips.ethereum.org/EIPS/eip-2612
     function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
         require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
+        // TODO: why should digest look like this?
         bytes32 digest = keccak256(
             abi.encodePacked(
                 '\x19\x01',
@@ -87,6 +100,10 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
                 keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
             )
         );
+
+        // ecrecover verify the signature
+        // return the address of the signer if succeed
+        // return ZERO_ADDRESS if fail
         address recoveredAddress = ecrecover(digest, v, r, s);
         require(recoveredAddress != address(0) && recoveredAddress == owner, 'UniswapV2: INVALID_SIGNATURE');
         _approve(owner, spender, value);
