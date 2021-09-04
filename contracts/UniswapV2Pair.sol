@@ -25,12 +25,16 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
 
     uint public price0CumulativeLast;
     uint public price1CumulativeLast;
+    // the x * y = k invariant
     uint public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
+    // lock acts as a mutex so that when the other contract called the function
+    // back, it reverts
+    // https://docs.soliditylang.org/en/v0.8.7/contracts.html#:~:text=contract%20Mutex%20%7B%0A%20%20%20%20bool,uint)
+    // ensure reentrant safety
     uint private unlocked = 1;
     modifier lock() {
         require(unlocked == 1, 'UniswapV2: LOCKED');
-        // TODO: what is this?
         unlocked = 0;
         _;
         unlocked = 1;
@@ -191,7 +195,11 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
 
     // force balances to match reserves
     function skim(address to) external lock {
-        // TODO: why does this save gas?
+        // why does this save gas?
+        // This saves gas as it access the address in memory instead of storage
+        // SLOAD: 200 gas fee
+        // MLOAD: 3 gas fee
+        // reference: https://github.com/djrtwo/evm-opcode-gas-costs/blob/master/opcode-gas-costs_EIP-150_revision-1e18248_2017-04-12.csv
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
         _safeTransfer(_token0, to, 
@@ -201,7 +209,6 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     }
 
     // force reserves to match balances
-    // TODO: what is lock modifier?
     function sync() external lock {
         _update(
             IERC20(token0).balanceOf(address(this)), 
