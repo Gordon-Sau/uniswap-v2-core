@@ -32,8 +32,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
         assembly {
             chainId := chainid
         }
-        // TODO: what is this hash for?
-        // what is abi?
+        // TODO: what is domain separator?
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
@@ -45,6 +44,8 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
         );
     }
 
+    // use internal modifier as this will called by mint in UniswapV2Pair
+    // which is dervied contract of this contract
     function _mint(address to, uint value) internal {
         totalSupply = totalSupply.add(value);
         balanceOf[to] = balanceOf[to].add(value);
@@ -89,7 +90,11 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     }
 
     // not in erc20 standard
-    // TODO: https://eips.ethereum.org/EIPS/eip-2612
+    // https://eips.ethereum.org/EIPS/eip-2612
+    // allow meta transaction ("users can authorize a transfer of their pool shares with a signature")
+    // "Anyone can submit this signature on the user’s behalf by calling the permit function,
+    // paying gas fees and possibly performing other actions in the transaction"
+    // ref: https://uniswap.org/whitepaper.pdf 2.5
     function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
         require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
         // TODO: why should digest look like this?
