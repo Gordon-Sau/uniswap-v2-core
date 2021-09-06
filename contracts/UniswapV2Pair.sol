@@ -228,7 +228,8 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         // This saves gas as it access the address in stack instead of storage
         // SLOAD: 200 gas fee
         // POP: 1 gas fee
-        // reference: https://github.com/djrtwo/evm-opcode-gas-costs/blob/master/opcode-gas-costs_EIP-150_revision-1e18248_2017-04-12.csv
+        // DUP(X): 3 gas fee
+        // reference: https://github.com/crytic/evm-opcodes
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
         _safeTransfer(_token0, to, 
