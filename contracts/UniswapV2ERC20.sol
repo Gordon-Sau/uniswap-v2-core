@@ -27,12 +27,15 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     event Transfer(address indexed from, address indexed to, uint value);
 
     constructor() public {
-        // TODO: why do we have chainId? Isn't there only one chain?
+        // chainId and DOMAIN_SEPARATOR are for the permit function which allows metatransaction
+        // why do we have chainId? To identify which chain is this contract in
         uint chainId;
         assembly {
             chainId := chainid
         }
-        // TODO: what is domain separator?
+        // what is domain separator? EIP-712 
+        // https://eips.ethereum.org/EIPS/eip-712
+        // TODO: read
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
@@ -81,7 +84,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     }
 
     function transferFrom(address from, address to, uint value) external returns (bool) {
-        // TODO: so when allowance == uint(-1), we have infinite allowance?
+        // when allowance == uint(-1), we have infinite allowance (allowanceMax)
         if (allowance[from][msg.sender] != uint(-1)) {
             allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
         }
@@ -97,7 +100,7 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     // ref: https://uniswap.org/whitepaper.pdf 2.5
     function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
         require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
-        // TODO: why should digest look like this?
+        // TODO: read ecrecover and abi
         bytes32 digest = keccak256(
             abi.encodePacked(
                 '\x19\x01',

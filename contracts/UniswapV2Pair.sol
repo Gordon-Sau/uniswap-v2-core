@@ -26,9 +26,11 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
 
     // used for price oracles
     // cumulative price helps track the historic price data and can help calculate moving average price
+    // need both since avg(1/x) != 1/avg(x)
     uint public price0CumulativeLast;
     uint public price1CumulativeLast;
 
+    // for feeOn
     uint public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
     // lock acts as a mutex so that when the other contract called the function
@@ -122,6 +124,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
                 }
             }
         } else if (_kLast != 0) {
+            // feeOn is off no need to save kLast and recalculate kLast nextTime
             kLast = 0;
         }
     }
@@ -167,7 +170,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         uint balance1 = IERC20(_token1).balanceOf(address(this));
         uint liquidity = balanceOf[address(this)]; 
         // balanceOf is a mapping in UniswapV2ERC which is the parent contract of this
-        // why does it use balanceOf[address(this)]? Does the sender send the liquidity token to this before calling burn?
+        // why does it use balanceOf[address(this)]? The sender send the liquidity token to this before calling burn.
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
         uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
@@ -208,11 +211,15 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         // used for flash swap
         if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
         
+        // get the balance after the flash swap, as it can modify the balance
         balance0 = IERC20(_token0).balanceOf(address(this));
         balance1 = IERC20(_token1).balanceOf(address(this));
         }
 
-        // TODO: what are they checking here?
+        // Anyone can call this function without following the rule
+        // also, "to" can be a flash swap contract which can violate the invariant
+        // Therefore, we have to check that (1000 · x1 − 3 · xin) · (1000 · y1 − 3 · yin) >= 1000000 · x0 · y0
+
         uint amount0In = balance0 > (_reserve0 - amount0Out) ? balance0 - (_reserve0 - amount0Out) : 0;
         uint amount1In = balance1 > (_reserve1 - amount1Out) ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
@@ -228,9 +235,8 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     }
 
     // https://uniswap.org/whitepaper.pdf 3.2.2
-    // since we are keeping track of reserve0 and reserve1, we have to ensure it
-    // is in sync with the balances of token0 and token1 of the contract
 
+    // skim handle overflow of the reserves
     // force balances to match reserves
     function skim(address to) external lock {
         // why does this save gas?
@@ -246,6 +252,10 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         _safeTransfer(_token1, to, 
             IERC20(_token1).balanceOf(address(this)).sub(reserve1));
     }
+
+    // sync is used "in the case that a token asynchronously
+    // deflates the balance of a pair"
+    // TODO: What does this mean?
 
     // force reserves to match balances
     function sync() external lock {
